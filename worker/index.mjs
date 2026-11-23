@@ -38,11 +38,14 @@ async function getToken(request,user,key) {
 async function uzum(token,path,query={}) {
   const endpoint = new URL(path,BASE);
   endpoint.search = new URLSearchParams(query);
+  const requestId=crypto.randomUUID();
   let result;
   try {
-    result = await fetch(endpoint,{headers:{Authorization:token,Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(12000)});
+    result = await fetch(endpoint,{headers:{Authorization:token,Accept:'application/json','X-Request-Id':requestId},redirect:'error',signal:AbortSignal.timeout(12000)});
   } catch { throw new RequestError(502,'Uzum не ответил. Повторите запрос позже.'); }
-  if (result.status===401 || result.status===403) throw new RequestError(422,'Uzum отклонил ключ. Проверьте срок действия и доступ к магазину, продажам и товарам.');
+  if (result.status===401 || result.status===403) {
+    throw new RequestError(422,`Uzum вернул HTTP ${result.status}. Запрос ${requestId}.`);
+  }
   if (result.status===429) throw new RequestError(429,'Uzum временно ограничил запросы. Подождите и обновите отчёт.');
   if (!result.ok) throw new RequestError(502,'Uzum вернул ошибку при загрузке отчёта.');
   try { return await result.json(); }
@@ -138,11 +141,26 @@ async function api(request,env,url) {
       if(!/^[1-9]\d{0,15}$/.test(shop) || !Number.isSafeInteger(Number(shop)) || ![7,14,30,60,90].includes(period)) throw new RequestError(400,'Выберите магазин и период.');
       const today=Date.parse(dayKey(Date.now())+'T00:00:00+05:00');
       const from=today-(period-1)*DAY;
-      const [orders,products]=await Promise.all([
-        pages(token,'v1/finance/orders',{shopIds:shop,group:false,dateFrom:from,dateTo:Date.now()},'orderItems','totalElements'),
+      const [sales,inventory]=await Promise.allSettled([
+        pages(token,'v1/finance/orders',{shopIds:shop,group:false,dateFrom:from,dateTo:Date.now()},'orderItems','totalElements')
+          .then(rows=>normalize(rows,[],from,today)),
         pages(token,'v1/product/shop/'+shop,{},'productList','totalProductsAmount')
+          .then(rows=>normalize([],rows,from,today).stock)
       ]);
-      return json(normalize(orders,products,from,today));
+      const describe=(result,label,path)=>result.status==='rejected'
+        ? `${label} (GET /${path}): ${result.reason instanceof RequestError ? result.reason.message : 'Не удалось загрузить данные.'}`
+        : null;
+      const errors=[
+        describe(sales,'Продажи','v1/finance/orders'),
+        describe(inventory,'Остатки','v1/product/shop/'+shop)
+      ].filter(Boolean);
+      return json({
+        days:sales.value?.days ?? null,
+        orderCount:sales.value?.orderCount ?? null,
+        stock:inventory.value ?? null,
+        errors,
+        updatedAt:new Date().toISOString()
+      });
     }
     return json({error:'Метод не найден.'},404);
   } catch (error) {

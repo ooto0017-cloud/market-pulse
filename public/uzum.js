@@ -62,8 +62,12 @@
   }
   const stockAmount=value=>value===null?'—':format.format(value);
   function showReport(data) {
-    const revenue=data.days.reduce((sum,day)=>sum+day.revenue,0);
-    const cards=[['Расчётная выручка',format.format(revenue)+' сум'],['Заказы с продажами',format.format(data.orderCount)],['SKU в каталоге',format.format(data.stock.length)]];
+    const revenue=data.days?.reduce((sum,day)=>sum+day.revenue,0);
+    const cards=[
+      ['Расчётная выручка',revenue==null?'—':format.format(revenue)+' сум'],
+      ['Заказы с продажами',stockAmount(data.orderCount)],
+      ['SKU в каталоге',stockAmount(data.stock?.length ?? null)]
+    ];
     el('uzumKpis').replaceChildren(...cards.map(([title,value])=>{
       const card=document.createElement('div');
       card.className='kpi';
@@ -75,11 +79,13 @@
       card.append(label,metric);
       return card;
     }));
-    renderRows('uzumDays',[...data.days].reverse().map(day=>[dateFormat.format(new Date(day.date+'T00:00:00+05:00')),format.format(day.revenue)+' сум',format.format(day.orders)]),'Продаж за период нет.');
-    renderRows('uzumStock',data.stock.map(row=>[row.code,row.name,stockAmount(row.fbo),stockAmount(row.fbs)]),'Uzum не вернул SKU.');
+    renderRows('uzumDays',[...(data.days ?? [])].reverse().map(day=>[dateFormat.format(new Date(day.date+'T00:00:00+05:00')),format.format(day.revenue)+' сум',format.format(day.orders)]),data.days===null?'Продажи недоступны.':'Продаж за период нет.');
+    renderRows('uzumStock',(data.stock ?? []).map(row=>[row.code,row.name,stockAmount(row.fbo),stockAmount(row.fbs)]),data.stock===null?'Остатки недоступны.':'Uzum не вернул SKU.');
     report.hidden=false;
     const time=new Intl.DateTimeFormat('ru-RU',{timeStyle:'short',timeZone:'Asia/Tashkent'}).format(new Date(data.updatedAt));
-    status.textContent='Обновлено в '+time+' по Ташкенту · автообновление каждые 10 минут, пока открыт кабинет.';
+    status.textContent=data.errors?.length
+      ? 'ID магазина '+shop.value+'. '+data.errors.join(' ')
+      : 'Обновлено в '+time+' по Ташкенту · автообновление каждые 10 минут, пока открыт кабинет.';
   }
   async function refresh() {
     if(!connected) return;
