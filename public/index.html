@@ -1,0 +1,36 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Market Pulse — аналитика маркетплейсов</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script><script defer src="/uzum.js"></script></head>
+<body><aside><a class="brand" href="/dashboard"><span class="logo">◈</span> Market<span>Pulse</span></a><p class="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</p><nav><a href="/dashboard?period=30&metric=revenue" data-page="dashboard"><i>◫</i> Обзор рынка</a><a href="/my-store" data-page="my-store"><i class="uz">U</i> Магазин Uzum</a><a href="/my-store-wb" data-page="my-store-wb"><i class="wb">W</i> Wildberries</a></nav><div class="nav-bottom"><button id="theme" type="button">◐ &nbsp; Сменить тему</button><div class="profile"><span class="avatar">MP</span><div><b>Рабочий кабинет</b><small>Market Pulse</small></div></div></div></aside>
+<div class="workspace"><header><div>Кабинет <span class="slash">/</span> <b id="crumb"></b></div><span id="mode" class="badge"></span></header>
+<main><section class="hero"><div><div class="eyebrow" id="context"></div><h1 id="title"></h1><p id="subtitle"></p></div><div class="actions"><button id="import" class="button">Импорт CSV</button><button id="export" class="button primary">↓ &nbsp; Экспорт отчёта</button></div></section>
+<section id="uzumPanel" class="panel uzum-panel" hidden>
+  <div class="panel-head"><div><h2>Данные кабинета продавца</h2><p id="uzumStatus" role="status">Проверяем подключение…</p></div>
+    <button id="uzumConnect" type="button">Подключить Uzum</button>
+  </div>
+  <div id="uzumLive" hidden>
+    <div class="actions uzum-filters">
+      <label>Магазин <select id="uzumShop"></select></label>
+      <label>Период <select id="uzumPeriod"><option value="7">7 дней</option><option value="14">14 дней</option><option value="30" selected>30 дней</option><option value="60">60 дней</option><option value="90">90 дней</option></select></label>
+      <button id="uzumRefresh" type="button">Обновить</button>
+      <button id="uzumDisconnect" type="button">Отключить</button>
+    </div>
+    <div id="uzumReport" hidden>
+      <div class="kpis" id="uzumKpis"></div>
+      <details open><summary>Продажи по дням</summary><div class="scroll"><table><thead><tr><th>Дата</th><th>Выручка с учётом возвратов и отмен</th><th>Заказы с продажами</th></tr></thead><tbody id="uzumDays"></tbody></table></div></details>
+      <details open><summary>Текущие остатки по SKU</summary><div class="scroll"><table><thead><tr><th>SKU</th><th>Товар</th><th>На складе Uzum</th><th>На складе продавца (FBS)</th></tr></thead><tbody id="uzumStock"></tbody></table></div></details>
+    </div>
+  </div>
+</section>
+<dialog id="uzumDialog"><form id="uzumForm">
+  <div class="panel-head"><h2>Подключение Uzum Market</h2><button id="uzumClose" type="button" aria-label="Закрыть">✕</button></div>
+  <p>Создайте ключ с доступом на чтение в разделе «Ключи API» кабинета продавца Uzum. Ключ хранится в зашифрованном виде в cookie этого браузера до 30 дней.</p>
+  <label class="file">API-ключ Uzum <input id="uzumToken" type="password" required maxlength="2000" autocomplete="off" spellcheck="false"></label>
+  <p id="uzumError" role="alert"></p>
+  <button class="primary" type="submit">Подключить</button>
+</form></dialog>
+<div id="csvDashboard">
+<section class="filters"><div id="periods" class="segments" aria-label="Период"></div><label class="date-range">По дату <input aria-label="Конец периода" id="end" type="date"></label><span id="range"></span></section>
+<div id="kpis" class="kpis"></div>
+<div class="analytics"><section class="panel chart-panel"><div class="panel-head"><div><h2 id="chartTitle"></h2><p id="chartDesc"></p></div><select id="metric" aria-label="Метрика графика"></select></div><div id="dayValue" class="day-value"></div><div class="chart-layout"><div id="scale"></div><div class="plot"><div id="bars"></div><div id="ticks"></div></div></div><div class="legend"><span></span> <span id="legend"></span><span class="highlight"></span> Выбранный день</div></section><section class="panel summary"><div class="panel-head"><div><h2 id="summaryTitle"></h2><p id="summaryDesc"></p></div></div><div id="summary"></div></section></div>
+<section class="panel table-panel" id="products"><div class="panel-head"><div><h2 id="tableTitle">Товары за период</h2><p id="count"></p></div><div class="actions"><input id="search" type="search" placeholder="Название или SKU" aria-label="Поиск товара"><select id="category" aria-label="Категория"></select></div></div><div class="scroll"><table><thead><tr><th>Товар</th><th>Категория</th><th><button data-sort="revenue">Выручка</button></th><th><button data-sort="orders">Заказы</button></th><th><button data-sort="stock">Остаток</button></th></tr></thead><tbody id="rows"></tbody></table></div></section>
+</div></main></div>
+<dialog id="importDialog"><form id="importForm"><div class="panel-head"><h2>Импорт продаж</h2><button type="button" id="dismiss" aria-label="Закрыть">✕</button></div><p>Загрузите CSV с дневными данными по SKU. Файл заменит предыдущий импорт на этой странице. Данные сохраняются в браузере.</p><button type="button" id="template">Скачать образец CSV</button><label class="file">Файл CSV<input required type="file" id="csv" accept=".csv,text/csv"></label><div id="importError" role="alert"></div><div class="actions"><button type="button" id="restoreDemo">Вернуть демо</button><button class="primary">Загрузить</button></div></form></dialog><div class="toast" id="toast" role="status" hidden></div></body></html>
