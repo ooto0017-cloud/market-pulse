@@ -38,16 +38,30 @@ async function getToken(request,user,key) {
 async function uzum(token,path,query={}) {
   const endpoint = new URL(path,BASE);
   endpoint.search = new URLSearchParams(query);
-  const requestId=crypto.randomUUID();
+  const attempts=path==='v1/shops' ? 2 : 1;
+  let requestId;
   let result;
-  try {
-    result = await fetch(endpoint,{headers:{Authorization:token,Accept:'application/json','X-Request-Id':requestId},redirect:'error',signal:AbortSignal.timeout(12000)});
-  } catch { throw new RequestError(502,'Uzum не ответил. Повторите запрос позже.'); }
+  for (let attempt=0;attempt<attempts;attempt++) {
+    requestId=crypto.randomUUID();
+    try {
+      result = await fetch(endpoint,{headers:{Authorization:token,Accept:'application/json','X-Request-Id':requestId},redirect:'manual',signal:AbortSignal.timeout(12000)});
+      if (![502,503,504].includes(result.status) || attempt===attempts-1) break;
+      await result.body?.cancel().catch(()=>{});
+    } catch (error) {
+      if (attempt<attempts-1) continue;
+      const timedOut=error?.name==='TimeoutError' || error?.name==='AbortError';
+      const message=timedOut ? 'Uzum не ответил за 12 секунд.' : 'Сервер Market Pulse не смог установить соединение с Uzum.';
+      throw new RequestError(502,`${message} GET /${path}. Запрос ${requestId}.`);
+    }
+  }
+  if (result.status>=300 && result.status<400) {
+    throw new RequestError(502,`Uzum перенаправил API-запрос (HTTP ${result.status}). GET /${path}. Запрос ${requestId}.`);
+  }
   if (result.status===401 || result.status===403) {
     throw new RequestError(422,`Uzum вернул HTTP ${result.status}. Запрос ${requestId}.`);
   }
   if (result.status===429) throw new RequestError(429,'Uzum временно ограничил запросы. Подождите и обновите отчёт.');
-  if (!result.ok) throw new RequestError(502,'Uzum вернул ошибку при загрузке отчёта.');
+  if (!result.ok) throw new RequestError(502,`Uzum вернул HTTP ${result.status}. Запрос ${requestId}.`);
   try { return await result.json(); }
   catch { throw new RequestError(502,'Uzum вернул ответ в неизвестном формате.'); }
 }
